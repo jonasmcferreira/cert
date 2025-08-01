@@ -41,7 +41,7 @@
         .help-icon { cursor: help; margin-left: 10px; font-size: 18px; color: #666; position: relative; }
         .help-tooltip { visibility: hidden; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 1000; }
         .help-icon:hover .help-tooltip { visibility: visible; }
-        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 15px; width: 60px; text-align: center; }
+
         .question-counter { text-align: center; margin-bottom: 20px; font-weight: bold; }
     </style>
 </head>
@@ -143,13 +143,7 @@
                 showQuestion(startIndex);
             }
             
-            // Show jump controls only in study mode
-            if (!mode) {
-                document.getElementById('nav-left').innerHTML = `
-                    <input type="number" id="jump-input" placeholder="#" min="1">
-                    <button onclick="jumpToQuestion()">Jump To</button>
-                `;
-            }
+            // No jump controls needed
         }
 
         function showQuestion(index) {
@@ -257,15 +251,7 @@
         
         loadQuestions();
 
-        function jumpToQuestion() {
-            const input = document.getElementById('jump-input');
-            const questionNum = parseInt(input.value);
-            const index = questionKeys.indexOf(questionNum.toString());
-            if (index !== -1) {
-                showQuestion(index);
-                input.value = '';
-            }
-        }
+
 
 
 
