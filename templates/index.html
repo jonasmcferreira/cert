@@ -79,6 +79,11 @@
             return answered ? JSON.parse(answered) : {};
         }
 
+        function getAnsweredQuestions() {
+            const answered = localStorage.getItem('answeredQuestions');
+            return answered ? JSON.parse(answered) : {};
+        }
+
         function markQuestionAnswered(questionNum) {
             const answered = getAnsweredQuestions();
             answered[questionNum] = true;
@@ -118,7 +123,18 @@
             document.getElementById('total-questions').textContent = questionKeys.length;
             
             if (questionKeys.length > 0) {
-                showQuestion(0);
+                // Find first unanswered question in study mode
+                let startIndex = 0;
+                if (!mode) { // Study mode
+                    const answeredQuestions = getAnsweredQuestions();
+                    for (let i = 0; i < questionKeys.length; i++) {
+                        if (!answeredQuestions[questionKeys[i]]) {
+                            startIndex = i;
+                            break;
+                        }
+                    }
+                }
+                showQuestion(startIndex);
             }
             
             // Show jump controls only in study mode
