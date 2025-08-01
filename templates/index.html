@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>SAP-C02 Questions</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
         .top-bar { background: #4a90e2; color: white; padding: 15px; font-size: 20px; font-weight: bold; text-align: center; display: flex; justify-content: space-between; align-items: center; }
@@ -9,9 +10,11 @@
         .top-bar-quit { cursor: pointer; font-size: 14px; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 4px; }
         .content { padding: 20px; }
         .question { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
-        .question h3 { font-size: 16px; }
-        .question p { font-size: 16px; }
-        .choice label { font-size: 16px; }
+        .question h3 { font-size: 16px !important; }
+        .question p { font-size: 16px !important; }
+        .choice label { font-size: 16px !important; }
+        .choice { font-size: 16px !important; }
+        * { -webkit-text-size-adjust: 100%; }
         .choices { margin: 35px 0 15px 0; }
         .choice { margin: 5px 0; padding: 5px; cursor: pointer; display: flex; align-items: flex-start; }
         .choice input[type="radio"], .choice input[type="checkbox"] { margin-right: 10px; margin-top: 2px; flex-shrink: 0; }
