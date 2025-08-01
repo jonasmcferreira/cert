@@ -26,14 +26,3 @@ cp templates/home.html index.html
 cp templates/index.html exam.html
 python -m http.server 8000
 ```
-
-## Generate AI Explanations (Optional)
-
-Configure AWS credentials with Bedrock access, then:
-
-```bash
-python generate_explanations.py --test  # Test with 5 questions
-python generate_explanations.py         # Process all questions
-```
-
-Progress is saved locally in your browser and persists between sessions.
