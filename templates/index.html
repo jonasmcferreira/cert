@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SAP-C02 Questions</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        .top-bar { background: #4a90e2; color: white; padding: 15px; font-size: 20px; font-weight: bold; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .top-bar-title { cursor: pointer; }
+        .top-bar-quit { cursor: pointer; font-size: 14px; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 4px; }
+        .content { padding: 20px; }
+        .question { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .choices { margin: 35px 0 15px 0; }
+        .choice { margin: 5px 0; padding: 5px; cursor: pointer; display: flex; align-items: flex-start; }
+        .choice input[type="radio"], .choice input[type="checkbox"] { margin-right: 10px; margin-top: 2px; flex-shrink: 0; }
+        .choice label { flex: 1; }
+        .choice.correct { background-color: #d4edda; }
+        .choice.incorrect { background-color: #f8d7da; }
+        .answer { background-color: #d4edda; padding: 10px; margin-top: 15px; border-radius: 3px; display: none; }
+        button { 
+            padding: 12px 24px; 
+            margin: 8px; 
+            cursor: pointer; 
+            background-color: #4a90e2; 
+            color: white; 
+            border: none; 
+            border-radius: 25px; 
+            font-size: 14px;
+        }
+        button:hover { background-color: #357abd; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .nav-buttons { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; }
+        .nav-left { display: flex; align-items: center; }
+        .nav-right { display: flex; align-items: center; }
+        .question-counter { font-weight: bold; margin: 0 15px; display: flex; align-items: center; }
+        .help-icon { cursor: help; margin-left: 10px; font-size: 18px; color: #666; position: relative; }
+        .help-tooltip { visibility: hidden; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 1000; }
+        .help-icon:hover .help-tooltip { visibility: visible; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 15px; width: 60px; text-align: center; }
+        .question-counter { text-align: center; margin-bottom: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="top-bar-title" onclick="goHome()">SAP-C02 Practice</div>
+        <div class="top-bar-quit" onclick="goHome()">← Back to Home</div>
+    </div>
+    <div class="content">
+    
+    <div class="nav-buttons">
+        <div class="nav-left" id="nav-left">
+        </div>
+        <div class="nav-right">
+            <div class="question-counter">
+                <span id="current-question">1</span> of <span id="total-questions">0</span>
+            </div>
+            <button onclick="prevQuestion()" id="prev-btn">Previous</button>
+            <span class="help-icon">❓
+                <div class="help-tooltip">
+                    ← → Arrow keys: Navigate questions<br>
+                    Spacebar: Reveal answer<br>
+                    1-6 keys: Select choices<br>
+                    Click choices to select
+                </div>
+            </span>
+            <button onclick="nextQuestion()" id="next-btn">Next</button>
+        </div>
+    </div>
+    
+    <div id="question-container"></div>
+    </div>
+
+    <script>
+        let questions = {};
+        let questionKeys = [];
+        let currentIndex = 0;
+
+        function getAnsweredQuestions() {
+            const answered = localStorage.getItem('answeredQuestions');
+            return answered ? JSON.parse(answered) : {};
+        }
+
+        function markQuestionAnswered(questionNum) {
+            const answered = getAnsweredQuestions();
+            answered[questionNum] = true;
+            localStorage.setItem('answeredQuestions', JSON.stringify(answered));
+        }
+
+        async function loadQuestions() {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const questionsUrl = isLocal ? '/questions' : 'questions.json';
+            const response = await fetch(questionsUrl);
+            const allQuestions = await response.json();
+            const answeredQuestions = getAnsweredQuestions();
+            
+            // Filter based on exam mode
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode');
+            
+            let filteredKeys = Object.keys(allQuestions).sort((a, b) => parseInt(a) - parseInt(b));
+            
+            if (mode === 'mini' || mode === 'full') {
+                // Get unanswered questions
+                const unansweredKeys = filteredKeys.filter(key => !answeredQuestions[key]);
+                
+                // Shuffle and limit
+                const shuffled = unansweredKeys.sort(() => 0.5 - Math.random());
+                const limit = mode === 'mini' ? 30 : 75;
+                filteredKeys = shuffled.slice(0, limit);
+            }
+            
+            // Build filtered questions object
+            questions = {};
+            filteredKeys.forEach(key => {
+                questions[key] = allQuestions[key];
+            });
+            
+            questionKeys = filteredKeys;
+            document.getElementById('total-questions').textContent = questionKeys.length;
+            
+            if (questionKeys.length > 0) {
+                showQuestion(0);
+            }
+            
+            // Show jump controls only in study mode
+            if (!mode) {
+                document.getElementById('nav-left').innerHTML = `
+                    <input type="number" id="jump-input" placeholder="#" min="1">
+                    <button onclick="jumpToQuestion()">Jump To</button>
+                `;
+            }
+        }
+
+        function showQuestion(index) {
+            if (index < 0 || index >= questionKeys.length) return;
+            
+            currentIndex = index;
+            const questionNum = questionKeys[index];
+            const question = questions[questionNum];
+            
+            document.getElementById('current-question').textContent = index + 1;
+            
+            const container = document.getElementById('question-container');
+            container.innerHTML = `
+                <div class="question">
+                    <h3>Question ${questionNum}</h3>
+                    <p>${question.question}</p>
+                    <div class="choices">
+                        ${question.choices.map((choice, index) => {
+                            const letter = choice.charAt(0);
+                            const isMultiSelect = question.question.toLowerCase().includes('choose two') || question.question.toLowerCase().includes('choose three');
+                            const inputType = isMultiSelect ? 'checkbox' : 'radio';
+                            return `<div class="choice" onclick="selectChoice('${letter}', ${isMultiSelect})">
+                                <input type="${inputType}" name="answer" value="${letter}" id="choice-${letter}">
+                                <label for="choice-${letter}">${choice}</label>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    <button onclick="revealAnswer(${questionNum})">Reveal Answer</button>
+                    <div class="answer" id="answer-${questionNum}">
+                        <div id="result-${questionNum}"></div>
+                        <strong>Correct Answer: ${question.answer}</strong>
+                        ${question.explanation ? `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ccc;"><strong>Explanation:</strong><br/>${question.explanation.replace(/\n/g, '<br/>')}</div>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('prev-btn').disabled = index === 0;
+            document.getElementById('next-btn').disabled = index === questionKeys.length - 1;
+        }
+
+        function selectChoice(letter, isMultiSelect) {
+            const checkbox = document.getElementById(`choice-${letter}`);
+            if (isMultiSelect) {
+                checkbox.checked = !checkbox.checked;
+            } else {
+                checkbox.checked = true;
+            }
+        }
+
+        async function revealAnswer(questionNum) {
+            const selectedChoices = document.querySelectorAll('input[name="answer"]:checked');
+            const correctAnswer = questions[questionNum].answer;
+            
+            // Show answer section
+            document.getElementById(`answer-${questionNum}`).style.display = 'block';
+            
+            // Check if user made selections
+            if (selectedChoices.length > 0) {
+                const userAnswers = Array.from(selectedChoices).map(input => input.value).sort().join('');
+                const isCorrect = userAnswers === correctAnswer;
+                
+                // Add result text
+                const resultDiv = document.getElementById(`result-${questionNum}`);
+                resultDiv.innerHTML = isCorrect ? 
+                    '<strong style="color: green;">✓ Correct!</strong>' : 
+                    '<strong style="color: red;">✗ Incorrect</strong>';
+                
+                // Highlight choices
+                document.querySelectorAll('.choice').forEach(choice => {
+                    const choiceLetter = choice.querySelector('input').value;
+                    if (correctAnswer.includes(choiceLetter)) {
+                        choice.classList.add('correct');
+                    } else if (userAnswers.includes(choiceLetter) && !isCorrect) {
+                        choice.classList.add('incorrect');
+                    }
+                });
+            }
+            
+            // Mark as answered in localStorage
+            markQuestionAnswered(questionNum);
+        }
+
+        function nextQuestion() {
+            showQuestion(currentIndex + 1);
+        }
+
+        function prevQuestion() {
+            showQuestion(currentIndex - 1);
+        }
+
+        function goHome() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode');
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const homeUrl = isLocal ? '/' : 'index.html';
+            
+            if (mode === 'mini' || mode === 'full') {
+                if (confirm('Are you sure you want to exit the exam and return to homepage?')) {
+                    window.location.href = homeUrl;
+                }
+            } else {
+                window.location.href = homeUrl;
+            }
+        }
+        
+        loadQuestions();
+
+        function jumpToQuestion() {
+            const input = document.getElementById('jump-input');
+            const questionNum = parseInt(input.value);
+            const index = questionKeys.indexOf(questionNum.toString());
+            if (index !== -1) {
+                showQuestion(index);
+                input.value = '';
+            }
+        }
+
+
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'ArrowLeft') {
+                prevQuestion();
+            } else if (event.key === 'ArrowRight') {
+                nextQuestion();
+            } else if (event.key === ' ') {
+                event.preventDefault();
+                const questionNum = questionKeys[currentIndex];
+                revealAnswer(questionNum);
+            } else if (event.key >= '1' && event.key <= '6') {
+                event.preventDefault();
+                const choiceIndex = parseInt(event.key) - 1;
+                const choices = document.querySelectorAll('input[name="answer"]');
+                if (choices[choiceIndex]) {
+                    const letter = choices[choiceIndex].value;
+                    const isMultiSelect = choices[choiceIndex].type === 'checkbox';
+                    selectChoice(letter, isMultiSelect);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

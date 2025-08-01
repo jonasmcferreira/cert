@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SAP-C02 Practice</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; text-align: center; }
+        .top-bar { background: #4a90e2; color: white; padding: 15px; font-size: 20px; font-weight: bold; cursor: pointer; }
+        .container { padding: 40px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 40px; }
+        .option { 
+            background: #f8f9fa; 
+            border: 2px solid #ddd; 
+            border-radius: 10px; 
+            padding: 30px; 
+            margin: 20px 0; 
+            cursor: pointer; 
+            transition: all 0.3s;
+        }
+        .option:hover:not(.disabled) { 
+            border-color: #4a90e2; 
+            background: #e8f4fd; 
+        }
+        .option.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .option h3 { margin: 0 0 10px 0; color: #4a90e2; }
+        .option p { margin: 0; color: #666; }
+        .stats { 
+            background: #e9ecef; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 30px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar" onclick="goHome()">SAP-C02 Practice</div>
+    <div class="container">
+        <div class="stats" id="stats">
+            Loading statistics...
+        </div>
+        
+        <div class="option disabled" id="mini-option">
+            <h3>Mini Test</h3>
+            <p>30 random questions from unanswered pool</p>
+        </div>
+        
+        <div class="option disabled" id="full-option">
+            <h3>Full Exam</h3>
+            <p>75 random questions from unanswered pool</p>
+        </div>
+        
+        <div class="option disabled" id="study-option">
+            <h3>Study Mode</h3>
+            <p>Browse all questions at your own pace</p>
+        </div>
+        
+        <div class="option disabled" id="reset-option" style="background: #fff5f5; border-color: #e53e3e;">
+            <h3 style="color: #e53e3e;">Reset Progress</h3>
+            <p>Mark all questions as unanswered and start over</p>
+        </div>
+    </div>
+
+    <script>
+        async function loadStats() {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const questionsUrl = isLocal ? '/questions' : 'questions.json';
+            const response = await fetch(questionsUrl);
+            const questions = await response.json();
+            const totalQuestions = Object.keys(questions).length;
+            
+            const answeredQuestions = JSON.parse(localStorage.getItem('answeredQuestions') || '{}');
+            const answeredCount = Object.keys(answeredQuestions).length;
+            const unansweredCount = totalQuestions - answeredCount;
+            
+            document.getElementById('stats').innerHTML = `
+                <strong>Progress:</strong> ${answeredCount}/${totalQuestions} questions answered 
+                (${unansweredCount} remaining)
+            `;
+            
+            // Enable buttons after loading
+            document.getElementById('mini-option').classList.remove('disabled');
+            document.getElementById('mini-option').onclick = () => startTest('mini');
+            
+            document.getElementById('full-option').classList.remove('disabled');
+            document.getElementById('full-option').onclick = () => startTest('full');
+            
+            document.getElementById('study-option').classList.remove('disabled');
+            document.getElementById('study-option').onclick = () => startTest('study');
+            
+            document.getElementById('reset-option').classList.remove('disabled');
+            document.getElementById('reset-option').onclick = resetProgress;
+        }
+        
+        function startTest(mode) {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const examUrl = isLocal ? '/exam' : 'exam.html';
+            
+            if (mode === 'study') {
+                window.location.href = examUrl;
+            } else {
+                window.location.href = `${examUrl}?mode=${mode}`;
+            }
+        }
+        
+        function resetProgress() {
+            if (confirm('Reset all progress? This will mark all questions as unanswered and you\'ll start over.')) {
+                localStorage.removeItem('answeredQuestions');
+                loadStats();
+            }
+        }
+        
+        function goHome() {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            window.location.href = isLocal ? '/' : 'index.html';
+        }
+        
+        loadStats();
+    </script>
+</body>
+</html>
