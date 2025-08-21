@@ -115,7 +115,7 @@
                 
                 // Shuffle and limit
                 const shuffled = unansweredKeys.sort(() => 0.5 - Math.random());
-                const limit = mode === 'mini' ? 30 : 75;
+                const limit = mode === 'mini' ? 10 : 75;
                 filteredKeys = shuffled.slice(0, limit);
             }
             
