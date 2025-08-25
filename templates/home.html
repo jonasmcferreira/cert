@@ -65,7 +65,7 @@
 
     <script>
         async function loadStats() {
-            const response = await fetch('/questions');
+            const response = await fetch('questions.json');
             const questions = await response.json();
             const totalQuestions = Object.keys(questions).length;
             
@@ -95,9 +95,9 @@
         
         function startTest(mode) {
             if (mode === 'study') {
-                window.location.href = '/exam';
+                window.location.href = 'exam.html';
             } else {
-                window.location.href = `/exam?mode=${mode}`;
+                window.location.href = `exam.html?mode=${mode}`;
             }
         }
         
@@ -109,7 +109,7 @@
         }
         
         function goHome() {
-            window.location.href = '/';
+            window.location.href = 'index.html';
         }
         
         loadStats();
