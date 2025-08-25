@@ -17,13 +17,9 @@
             cursor: pointer; 
             transition: all 0.3s;
         }
-        .option:hover:not(.disabled) { 
+        .option:hover { 
             border-color: #4a90e2; 
             background: #e8f4fd; 
-        }
-        .option.disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
         }
         .option h3 { margin: 0 0 10px 0; color: #4a90e2; }
         .option p { margin: 0; color: #666; }
@@ -38,26 +34,30 @@
 <body>
     <div class="top-bar" onclick="goHome()">SAP-C02 Practice</div>
     <div class="container">
+        <h1>SAP-C02 Practice Exam</h1>
+        
         <div class="stats" id="stats">
             Loading statistics...
         </div>
         
-        <div class="option disabled" id="mini-option">
+        <div class="option" onclick="startTest('mini')">
             <h3>Mini Test</h3>
             <p>10 random questions from unanswered pool</p>
+            <div id="mini-progress" style="font-size: 12px; color: #888; margin-top: 5px;"></div>
         </div>
         
-        <div class="option disabled" id="full-option">
+        <div class="option" onclick="startTest('full')">
             <h3>Full Exam</h3>
             <p>75 random questions from unanswered pool</p>
+            <div id="full-progress" style="font-size: 12px; color: #888; margin-top: 5px;"></div>
         </div>
         
-        <div class="option disabled" id="study-option">
+        <div class="option" onclick="startTest('study')">
             <h3>Study Mode</h3>
             <p>Browse all questions at your own pace</p>
         </div>
         
-        <div class="option disabled" id="reset-option" style="background: #fff5f5; border-color: #e53e3e;">
+        <div class="option" onclick="resetProgress()" style="background: #fff5f5; border-color: #e53e3e;">
             <h3 style="color: #e53e3e;">Reset Progress</h3>
             <p>Mark all questions as unanswered and start over</p>
         </div>
@@ -65,9 +65,7 @@
 
     <script>
         async function loadStats() {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const questionsUrl = isLocal ? '/questions' : 'questions.json';
-            const response = await fetch(questionsUrl);
+            const response = await fetch('/questions');
             const questions = await response.json();
             const totalQuestions = Object.keys(questions).length;
             
@@ -80,28 +78,26 @@
                 (${unansweredCount} remaining)
             `;
             
-            // Enable buttons after loading
-            document.getElementById('mini-option').classList.remove('disabled');
-            document.getElementById('mini-option').onclick = () => startTest('mini');
+            // Load exam progress
+            const miniProgress = JSON.parse(localStorage.getItem('examProgress_mini') || '{"correct": 0, "total": 0}');
+            const fullProgress = JSON.parse(localStorage.getItem('examProgress_full') || '{"correct": 0, "total": 0}');
             
-            document.getElementById('full-option').classList.remove('disabled');
-            document.getElementById('full-option').onclick = () => startTest('full');
+            if (miniProgress.total > 0) {
+                const miniPercent = Math.round((miniProgress.correct / miniProgress.total) * 100);
+                document.getElementById('mini-progress').innerHTML = `Last session: ${miniProgress.correct}/${miniProgress.total} correct (${miniPercent}%)`;
+            }
             
-            document.getElementById('study-option').classList.remove('disabled');
-            document.getElementById('study-option').onclick = () => startTest('study');
-            
-            document.getElementById('reset-option').classList.remove('disabled');
-            document.getElementById('reset-option').onclick = resetProgress;
+            if (fullProgress.total > 0) {
+                const fullPercent = Math.round((fullProgress.correct / fullProgress.total) * 100);
+                document.getElementById('full-progress').innerHTML = `Last session: ${fullProgress.correct}/${fullProgress.total} correct (${fullPercent}%)`;
+            }
         }
         
         function startTest(mode) {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const examUrl = isLocal ? '/exam' : 'exam.html';
-            
             if (mode === 'study') {
-                window.location.href = examUrl;
+                window.location.href = '/exam';
             } else {
-                window.location.href = `${examUrl}?mode=${mode}`;
+                window.location.href = `/exam?mode=${mode}`;
             }
         }
         
@@ -113,8 +109,7 @@
         }
         
         function goHome() {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            window.location.href = isLocal ? '/' : 'index.html';
+            window.location.href = '/';
         }
         
         loadStats();

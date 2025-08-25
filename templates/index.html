@@ -2,19 +2,11 @@
 <html>
 <head>
     <title>SAP-C02 Questions</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-        .top-bar { background: #4a90e2; color: white; padding: 15px; font-size: 20px; font-weight: bold; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-        .top-bar-title { cursor: pointer; }
-        .top-bar-quit { cursor: pointer; font-size: 14px; padding: 8px 16px; background: rgba(255,255,255,0.2); border-radius: 4px; }
+        .top-bar { background: #4a90e2; color: white; padding: 15px; font-size: 20px; font-weight: bold; cursor: pointer; text-align: center; }
         .content { padding: 20px; }
         .question { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
-        .question h3 { font-size: 16px !important; }
-        .question p { font-size: 16px !important; }
-        .choice label { font-size: 16px !important; }
-        .choice { font-size: 16px !important; }
-        * { -webkit-text-size-adjust: 100%; }
         .choices { margin: 35px 0 15px 0; }
         .choice { margin: 5px 0; padding: 5px; cursor: pointer; display: flex; align-items: flex-start; }
         .choice input[type="radio"], .choice input[type="checkbox"] { margin-right: 10px; margin-top: 2px; flex-shrink: 0; }
@@ -34,31 +26,28 @@
         }
         button:hover { background-color: #357abd; }
         button:disabled { background-color: #ccc; cursor: not-allowed; }
-        .nav-buttons { display: flex; justify-content: space-between; align-items: center; margin: 20px 0; }
+        .nav-buttons { display: flex; justify-content: space-between; margin: 20px 0; }
         .nav-left { display: flex; align-items: center; }
         .nav-right { display: flex; align-items: center; }
-        .question-counter { font-weight: bold; margin: 0 15px; display: flex; align-items: center; }
         .help-icon { cursor: help; margin-left: 10px; font-size: 18px; color: #666; position: relative; }
         .help-tooltip { visibility: hidden; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 1000; }
         .help-icon:hover .help-tooltip { visibility: visible; }
-
+        input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 15px; width: 60px; text-align: center; }
         .question-counter { text-align: center; margin-bottom: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="top-bar">
-        <div class="top-bar-title" onclick="goHome()">SAP-C02 Practice</div>
-        <div class="top-bar-quit" onclick="goHome()">← Back to Home</div>
-    </div>
+    <div class="top-bar" onclick="goHome()">SAP-C02 Practice</div>
     <div class="content">
+    <div class="question-counter">
+        <span id="current-question">1</span> of <span id="total-questions">0</span>
+        <div id="progress-display" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+    </div>
     
     <div class="nav-buttons">
         <div class="nav-left" id="nav-left">
         </div>
         <div class="nav-right">
-            <div class="question-counter">
-                <span id="current-question">1</span> of <span id="total-questions">0</span>
-            </div>
             <button onclick="prevQuestion()" id="prev-btn">Previous</button>
             <span class="help-icon">❓
                 <div class="help-tooltip">
@@ -79,11 +68,7 @@
         let questions = {};
         let questionKeys = [];
         let currentIndex = 0;
-
-        function getAnsweredQuestions() {
-            const answered = localStorage.getItem('answeredQuestions');
-            return answered ? JSON.parse(answered) : {};
-        }
+        let examMode = null;
 
         function getAnsweredQuestions() {
             const answered = localStorage.getItem('answeredQuestions');
@@ -96,16 +81,41 @@
             localStorage.setItem('answeredQuestions', JSON.stringify(answered));
         }
 
+        function getExamProgress() {
+            const key = `examProgress_${examMode}`;
+            const progress = localStorage.getItem(key);
+            return progress ? JSON.parse(progress) : { correct: 0, total: 0 };
+        }
+
+        function updateExamProgress(isCorrect) {
+            if (!examMode) return;
+            const progress = getExamProgress();
+            progress.total++;
+            if (isCorrect) progress.correct++;
+            localStorage.setItem(`examProgress_${examMode}`, JSON.stringify(progress));
+            updateProgressDisplay();
+        }
+
+        function updateProgressDisplay() {
+            const progressDiv = document.getElementById('progress-display');
+            if (!examMode) {
+                progressDiv.style.display = 'none';
+                return;
+            }
+            const progress = getExamProgress();
+            const percentage = progress.total > 0 ? Math.round((progress.correct / progress.total) * 100) : 0;
+            progressDiv.innerHTML = `Progress: ${progress.correct}/${progress.total} correct (${percentage}%)`;
+        }
+
         async function loadQuestions() {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const questionsUrl = isLocal ? '/questions' : 'questions.json';
-            const response = await fetch(questionsUrl);
+            const response = await fetch('/questions');
             const allQuestions = await response.json();
             const answeredQuestions = getAnsweredQuestions();
             
             // Filter based on exam mode
             const urlParams = new URLSearchParams(window.location.search);
             const mode = urlParams.get('mode');
+            examMode = mode;
             
             let filteredKeys = Object.keys(allQuestions).sort((a, b) => parseInt(a) - parseInt(b));
             
@@ -129,21 +139,23 @@
             document.getElementById('total-questions').textContent = questionKeys.length;
             
             if (questionKeys.length > 0) {
-                // Find first unanswered question in study mode
-                let startIndex = 0;
-                if (!mode) { // Study mode
-                    const answeredQuestions = getAnsweredQuestions();
-                    for (let i = 0; i < questionKeys.length; i++) {
-                        if (!answeredQuestions[questionKeys[i]]) {
-                            startIndex = i;
-                            break;
-                        }
-                    }
-                }
-                showQuestion(startIndex);
+                showQuestion(0);
             }
             
-            // No jump controls needed
+            updateProgressDisplay();
+            
+            // Reset progress for new exam session
+            if (examMode && questionKeys.length > 0) {
+                resetExamProgress();
+            }
+            
+            // Show jump controls only in study mode
+            if (!mode) {
+                document.getElementById('nav-left').innerHTML = `
+                    <input type="number" id="jump-input" placeholder="#" min="1">
+                    <button onclick="jumpToQuestion()">Jump To</button>
+                `;
+            }
         }
 
         function showQuestion(index) {
@@ -220,6 +232,9 @@
                         choice.classList.add('incorrect');
                     }
                 });
+                
+                // Update exam progress
+                updateExamProgress(isCorrect);
             }
             
             // Mark as answered in localStorage
@@ -237,21 +252,34 @@
         function goHome() {
             const urlParams = new URLSearchParams(window.location.search);
             const mode = urlParams.get('mode');
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const homeUrl = isLocal ? '/' : 'index.html';
             
             if (mode === 'mini' || mode === 'full') {
                 if (confirm('Are you sure you want to exit the exam and return to homepage?')) {
-                    window.location.href = homeUrl;
+                    window.location.href = '/';
                 }
             } else {
-                window.location.href = homeUrl;
+                window.location.href = '/';
+            }
+        }
+        
+        function resetExamProgress() {
+            if (examMode) {
+                localStorage.removeItem(`examProgress_${examMode}`);
+                updateProgressDisplay();
             }
         }
         
         loadQuestions();
 
-
+        function jumpToQuestion() {
+            const input = document.getElementById('jump-input');
+            const questionNum = parseInt(input.value);
+            const index = questionKeys.indexOf(questionNum.toString());
+            if (index !== -1) {
+                showQuestion(index);
+                input.value = '';
+            }
+        }
 
 
 
