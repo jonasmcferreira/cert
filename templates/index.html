@@ -3,17 +3,19 @@
 <head>
     <title>SAP-C02 Questions</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 16px; }
         .top-bar { background: #4a90e2; color: white; padding: 15px; font-size: 20px; font-weight: bold; cursor: pointer; text-align: center; }
         .content { padding: 20px; }
-        .question { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .question { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }
+        .question h3 { font-size: 18px; }
+        .question p { font-size: 16px; line-height: 1.5; }
         .choices { margin: 35px 0 15px 0; }
-        .choice { margin: 5px 0; padding: 5px; cursor: pointer; display: flex; align-items: flex-start; }
+        .choice { margin: 5px 0; padding: 8px; cursor: pointer; display: flex; align-items: flex-start; font-size: 16px; }
         .choice input[type="radio"], .choice input[type="checkbox"] { margin-right: 10px; margin-top: 2px; flex-shrink: 0; }
-        .choice label { flex: 1; }
+        .choice label { flex: 1; font-size: 16px; line-height: 1.4; }
         .choice.correct { background-color: #d4edda; }
         .choice.incorrect { background-color: #f8d7da; }
-        .answer { background-color: #d4edda; padding: 10px; margin-top: 15px; border-radius: 3px; display: none; }
+        .answer { background-color: #d4edda; padding: 15px; margin-top: 15px; border-radius: 3px; display: none; font-size: 16px; line-height: 1.5; }
         button { 
             padding: 12px 24px; 
             margin: 8px; 
@@ -33,7 +35,18 @@
         .help-tooltip { visibility: hidden; position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 1000; }
         .help-icon:hover .help-tooltip { visibility: visible; }
         input { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 15px; width: 60px; text-align: center; }
-        .question-counter { text-align: center; margin-bottom: 20px; font-weight: bold; }
+        .question-counter { text-align: center; margin-bottom: 20px; font-weight: bold; font-size: 16px; }
+        
+        @media (max-width: 768px) {
+            body { font-size: 18px; }
+            .question { font-size: 18px; }
+            .question h3 { font-size: 20px; }
+            .question p { font-size: 18px; }
+            .choice { font-size: 18px; padding: 10px; }
+            .choice label { font-size: 18px; }
+            .answer { font-size: 18px; }
+            .content { padding: 15px; }
+        }
     </style>
 </head>
 <body>
@@ -65,25 +78,70 @@
     </div>
 
     <script>
+        // Storage utility functions
+        function setStorage(key, value) {
+            try {
+                localStorage.setItem(key, value);
+            } catch (e) {
+                // Fallback to cookies
+                document.cookie = `${key}=${encodeURIComponent(value)}; expires=Fri, 31 Dec 9999 23:59:59 GMT; path=/`;
+            }
+        }
+        
+        function getStorage(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch (e) {
+                // Fallback to cookies
+                const name = key + '=';
+                const decodedCookie = decodeURIComponent(document.cookie);
+                const ca = decodedCookie.split(';');
+                for (let i = 0; i < ca.length; i++) {
+                    let c = ca[i];
+                    while (c.charAt(0) === ' ') {
+                        c = c.substring(1);
+                    }
+                    if (c.indexOf(name) === 0) {
+                        return c.substring(name.length, c.length);
+                    }
+                }
+                return null;
+            }
+        }
+        
+        function removeStorage(key) {
+            try {
+                localStorage.removeItem(key);
+            } catch (e) {
+                // Remove from cookies
+                document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+            }
+        }
+
         let questions = {};
         let questionKeys = [];
         let currentIndex = 0;
         let examMode = null;
 
         function getAnsweredQuestions() {
-            const answered = localStorage.getItem('answeredQuestions');
+            const answered = getStorage('answeredQuestions');
             return answered ? JSON.parse(answered) : {};
         }
 
-        function markQuestionAnswered(questionNum) {
+        function markQuestionAnswered(questionNum, isCorrect = null) {
             const answered = getAnsweredQuestions();
-            answered[questionNum] = true;
-            localStorage.setItem('answeredQuestions', JSON.stringify(answered));
+            answered[questionNum] = isCorrect !== null ? (isCorrect ? 'correct' : 'incorrect') : true;
+            setStorage('answeredQuestions', JSON.stringify(answered));
+        }
+        
+        function getQuestionStatus(questionNum) {
+            const answered = getAnsweredQuestions();
+            return answered[questionNum] || null;
         }
 
         function getExamProgress() {
             const key = `examProgress_${examMode}`;
-            const progress = localStorage.getItem(key);
+            const progress = getStorage(key);
             return progress ? JSON.parse(progress) : { correct: 0, total: 0 };
         }
 
@@ -92,7 +150,7 @@
             const progress = getExamProgress();
             progress.total++;
             if (isCorrect) progress.correct++;
-            localStorage.setItem(`examProgress_${examMode}`, JSON.stringify(progress));
+            setStorage(`examProgress_${examMode}`, JSON.stringify(progress));
             updateProgressDisplay();
         }
 
@@ -108,7 +166,9 @@
         }
 
         async function loadQuestions() {
-            const response = await fetch('questions.json');
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const questionsUrl = isLocal ? '/questions' : 'questions.json';
+            const response = await fetch(questionsUrl);
             const allQuestions = await response.json();
             const answeredQuestions = getAnsweredQuestions();
             
@@ -120,13 +180,16 @@
             let filteredKeys = Object.keys(allQuestions).sort((a, b) => parseInt(a) - parseInt(b));
             
             if (mode === 'mini' || mode === 'full') {
-                // Get unanswered questions
-                const unansweredKeys = filteredKeys.filter(key => !answeredQuestions[key]);
+                // Get unanswered questions (including incorrectly answered ones)
+                const unansweredKeys = filteredKeys.filter(key => !answeredQuestions[key] || answeredQuestions[key] === 'incorrect');
                 
                 // Shuffle and limit
                 const shuffled = unansweredKeys.sort(() => 0.5 - Math.random());
                 const limit = mode === 'mini' ? 10 : 75;
                 filteredKeys = shuffled.slice(0, limit);
+            } else if (mode === 'review') {
+                // Get only incorrectly answered questions
+                filteredKeys = filteredKeys.filter(key => answeredQuestions[key] === 'incorrect');
             }
             
             // Build filtered questions object
@@ -145,7 +208,7 @@
             updateProgressDisplay();
             
             // Reset progress for new exam session
-            if (examMode && questionKeys.length > 0) {
+            if (examMode && questionKeys.length > 0 && examMode !== 'review') {
                 resetExamProgress();
             }
             
@@ -167,10 +230,18 @@
             
             document.getElementById('current-question').textContent = index + 1;
             
+            const questionStatus = getQuestionStatus(questionNum);
+            let statusIcon = '';
+            if (questionStatus === 'correct') {
+                statusIcon = ' <span style="color: green;">✓</span>';
+            } else if (questionStatus === 'incorrect') {
+                statusIcon = ' <span style="color: red;">✗</span>';
+            }
+            
             const container = document.getElementById('question-container');
             container.innerHTML = `
                 <div class="question">
-                    <h3>Question ${questionNum}</h3>
+                    <h3>Question ${questionNum}${statusIcon}</h3>
                     <p>${question.question}</p>
                     <div class="choices">
                         ${question.choices.map((choice, index) => {
@@ -188,6 +259,10 @@
                         <div id="result-${questionNum}"></div>
                         <strong>Correct Answer: ${question.answer}</strong>
                         ${question.explanation ? `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ccc;"><strong>Explanation:</strong><br/>${question.explanation.replace(/\n/g, '<br/>')}</div>` : ''}
+                        <div style="margin-top: 15px; text-align: center;">
+                            <button onclick="markAsCorrect(${questionNum})" style="background: #28a745; margin-right: 10px;">Mark Correct ✓</button>
+                            <button onclick="markAsIncorrect(${questionNum})" style="background: #dc3545;">Mark Incorrect ✗</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -235,10 +310,13 @@
                 
                 // Update exam progress
                 updateExamProgress(isCorrect);
+                
+                // Mark as answered with correct/incorrect status
+                markQuestionAnswered(questionNum, isCorrect);
+            } else {
+                // Mark as answered without status if no selection
+                markQuestionAnswered(questionNum);
             }
-            
-            // Mark as answered in localStorage
-            markQuestionAnswered(questionNum);
         }
 
         function nextQuestion() {
@@ -253,20 +331,33 @@
             const urlParams = new URLSearchParams(window.location.search);
             const mode = urlParams.get('mode');
             
-            if (mode === 'mini' || mode === 'full') {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const homeUrl = isLocal ? '/' : 'index.html';
+            
+            if (mode === 'mini' || mode === 'full' || mode === 'review') {
                 if (confirm('Are you sure you want to exit the exam and return to homepage?')) {
-                    window.location.href = 'index.html';
+                    window.location.href = homeUrl;
                 }
             } else {
-                window.location.href = 'index.html';
+                window.location.href = homeUrl;
             }
         }
         
         function resetExamProgress() {
             if (examMode) {
-                localStorage.removeItem(`examProgress_${examMode}`);
+                removeStorage(`examProgress_${examMode}`);
                 updateProgressDisplay();
             }
+        }
+        
+        function markAsCorrect(questionNum) {
+            markQuestionAnswered(questionNum, true);
+            showQuestion(currentIndex); // Refresh to show status
+        }
+        
+        function markAsIncorrect(questionNum) {
+            markQuestionAnswered(questionNum, false);
+            showQuestion(currentIndex); // Refresh to show status
         }
         
         loadQuestions();
